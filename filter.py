@@ -1,0 +1,38 @@
+﻿
+from __future__ import print_function
+
+import sys
+import json
+import ast
+
+from pyspark import SparkContext
+
+def parseJson(s):
+	s = ast.literal_eval(s)
+	a = json.dumps(s)
+	b = json.loads(a)
+	return b
+	
+if __name__ == "__main__":
+  if len(sys.argv) != 2:
+    print("Usage: filter.py <filename>", file=sys.stderr)
+    sys.exit(-1)
+  sc = SparkContext("local[2]",appName="PythonStreamingNetworkWordCount")
+  
+  lines = sc.textFile(sys.argv[1])
+  parts = lines.map(lambda l: l.split("\t"))
+  movie = parts.map(lambda p: (p[2], p[5],p[10],p[14], p[15], p[20],p[22],p[23]))
+  genre = parts.map(lambda p: (p[5], parseJson(p[3])))
+  company = parts.map(lambda p: (p[5], parseJson(p[12])))
+	#parsed_json = json.loads("{'id': 16, 'name': Animation}")
+  movie.foreach(print)
+  genre.foreach(print)
+  company.foreach(print)
+'''
+  counts = lines.flatMap(lambda line: line.split("\t")) \
+    .map(lambda word: (word, 1)) \
+    .reduceByKey(lambda a, b: a+b)
+'''
+s = '{"name": "ACME", "shares": 50, "price": 490.1}'
+s = '{"id": 16, "name": "Animation"}'
+
