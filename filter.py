@@ -6,6 +6,7 @@ import json
 import ast
 
 from pyspark import SparkContext, HiveContext
+from pyspark.sql import SparkSession
 from pyspark.sql.types import *
 
 def parseJson(s):
@@ -55,6 +56,14 @@ if __name__ == "__main__":
   #genre.foreach(parseGenre)
   #company.foreach(parseCompany)
 
+
+  # save movie to hive
+  hc = SparkSession \
+    .builder \
+    .appName("Python Spark SQL Hive integration example") \
+    .config("hive.metastore.uris", "thrift://127.0.0.1:9083") \
+    .enableHiveSupport() \
+    .getOrCreate()
 
   # save movie to table
   sqlContext = HiveContext(sc)
