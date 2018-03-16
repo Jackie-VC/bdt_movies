@@ -21,7 +21,7 @@ if __name__ == "__main__":
   
   lines = sc.textFile(sys.argv[1])
   parts = lines.map(lambda l: l.split("\t"))
-  movie = parts.map(lambda p: (p[2], p[5],p[10],p[14], p[15], p[20],p[22],p[23]))
+  movie = parts.map(lambda p: (p[5], p[2], p[10],p[14], p[15], p[20],p[22],p[23])).filter(lambda l:int(l[1])>0)
   genre = parts.map(lambda p: (p[5], parseJson(p[3])))
   company = parts.map(lambda p: (p[5], parseJson(p[12])))
 	#parsed_json = json.loads("{'id': 16, 'name': Animation}")
