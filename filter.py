@@ -16,35 +16,44 @@ def parseJson(s):
 	
 def parseGenre(x):
 	print("movid = ",x[0])
+'''
 	
 	for i in x[1]:
 		print('genreid=',i['id'], " name=",i['name'])
-		
 	return 
+'''
 	
 def parseCompany(x):
+
 	print("movid = ",x[0])
+'''
 	
 	for i in x[1]:
 		print('companyid=',i['id'], " name=",i['name'])
-		
+
 	return 
+'''
 	
 if __name__ == "__main__":
   if len(sys.argv) != 2:
     print("Usage: filter.py <filename>", file=sys.stderr)
     sys.exit(-1)
+    
   sc = SparkContext("local[1]",appName="PythonStreamingNetworkWordCount")
   
   lines = sc.textFile(sys.argv[1])
+  header = lines.first() #extract header
+  lines = lines.filter(lambda row : row != header) 
+
   parts = lines.map(lambda l: l.split("\t")).filter(lambda l:len(l)==24)
-  movie = parts.map(lambda p: (p[5], p[2], p[10],p[14], p[15], p[20],p[22],p[23])).filter(lambda l:int(l[1])>0)
-  genre = parts.map(lambda p: (p[5], parseJson(p[3])))
-  company = parts.map(lambda p: (p[5], parseJson(p[12])))
+  movie = parts.map(lambda p: (p[5], p[2], p[10],p[14], p[15], p[20],p[22],p[23],p[3],p[12])).filter(lambda l:l[1].isdigit() and int(l[1])>0)
+  genre = movie.map(lambda p: (p[0], parseJson(p[8])))
+  company = movie.map(lambda p: (p[0], parseJson(p[9])))
 	#parsed_json = json.loads("{'id': 16, 'name': Animation}")
+  movie = movie.map(lambda p: (p[0:8]))
   movie.foreach(print)
-  genre.foreach(parseGenre)
-  company.foreach(parseCompany)
+  #genre.foreach(parseGenre)
+  #company.foreach(parseCompany)
 
 
   # save movie to table
@@ -60,7 +69,7 @@ if __name__ == "__main__":
     StructField("voting_count", StringType(), True)
   ])
   movieDF = sqlContext.createDataFrame(movie, schema=movieSchema)
-  movieDF.write.mode("append").saveAsTable("default.movie")
+  movieDF.write.mode("overwrite").saveAsTable("default.movie")
   result = sqlContext.sql("select * from movie")
   print("=========================")
   result.show()
