@@ -37,7 +37,7 @@ if __name__ == "__main__":
   sc = SparkContext("local[1]",appName="PythonStreamingNetworkWordCount")
   
   lines = sc.textFile(sys.argv[1])
-  parts = lines.map(lambda l: l.split("\t"))
+  parts = lines.map(lambda l: l.split("\t")).filter(lambda l:len(l)==24)
   movie = parts.map(lambda p: (p[5], p[2], p[10],p[14], p[15], p[20],p[22],p[23])).filter(lambda l:int(l[1])>0)
   genre = parts.map(lambda p: (p[5], parseJson(p[3])))
   company = parts.map(lambda p: (p[5], parseJson(p[12])))
