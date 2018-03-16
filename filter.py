@@ -5,7 +5,8 @@ import sys
 import json
 import ast
 
-from pyspark import SparkContext
+from pyspark import SparkContext, HiveContext
+from pyspark.sql.types import *
 
 def parseJson(s):
 	s = ast.literal_eval(s)
@@ -44,6 +45,27 @@ if __name__ == "__main__":
   movie.foreach(print)
   genre.foreach(parseGenre)
   company.foreach(parseCompany)
+
+
+  # save movie to table
+  sqlContext = HiveContext(sc)
+  movieSchema = StructType([
+    StructField("movie_id", StringType(), False),
+    StructField("budget", StringType(), True),
+    StructField("popularity", StringType(), True),
+    StructField("release_date", StringType(), True),
+    StructField("revenue", StringType(), True),
+    StructField("title", StringType(), True),
+    StructField("voting_score", StringType(), True),
+    StructField("voting_count", StringType(), True)
+  ])
+  movieDF = sqlContext.createDataFrame(movie, schema=movieSchema)
+  movieDF.write.mode("append").saveAsTable("default.movie")
+  result = sqlContext.sql("select * from movie")
+  print("=========================")
+  result.show()
+
+
 '''
   counts = lines.flatMap(lambda line: line.split("\t")) \
     .map(lambda word: (word, 1)) \
