@@ -48,12 +48,12 @@ if __name__ == "__main__":
   header = lines.first() #extract header
   lines = lines.filter(lambda row : row != header) 
 
-  parts = lines.map(lambda l: l.split(",")).filter(lambda l:len(l)==24)
+  parts = lines.map(lambda l: l.split("\t")).filter(lambda l:len(l)==24)
   movie = parts.map(lambda p: (p[5], p[2], p[10],p[14], p[15], p[20],p[22],p[23],p[3],p[12])).filter(lambda l:l[1].isdigit() and int(l[1])>0 and l[4].isdigit() and int(l[4])>0 )
   genre = movie.map(lambda p: (p[0], parseJson(p[8])))
   company = movie.map(lambda p: (p[0], parseJson(p[9])))
 	#parsed_json = json.loads("{'id': 16, 'name': Animation}")
-  movie = movie.map(lambda p: (p[0:9]))
+  movie = movie.map(lambda p: (long(p[0]),long(p[1]),float(p[2]),datetime.datetime.strptime(p[3],'%m/%d/%Y').date().year, datetime.datetime.strptime(p[3],'%m/%d/%Y').date().month,long(p[4]),p[5],float(p[6]),int(p[7])))
   movie.foreach(print)
   #genre.foreach(parseGenre)
   #company.foreach(parseCompany)
