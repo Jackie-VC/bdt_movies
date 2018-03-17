@@ -4,6 +4,7 @@ from __future__ import print_function
 import sys
 import json
 import ast
+import datetime
 
 from pyspark import SparkContext, HiveContext
 from pyspark.sql import SparkSession, Row, DataFrame
@@ -15,16 +16,16 @@ def parseJson(s):
 	a = json.dumps(s)
 	b = json.loads(a)
 	return b
-
+	
 def parseGenre(x):
-  print(x)
+	print("movid = ",x[0])
 '''
 	
 	for i in x[1]:
 		print('genreid=',i['id'], " name=",i['name'])
 	return 
 '''
-
+	
 def parseCompany(x):
 
 	print("movid = ",x[0])
@@ -35,28 +36,27 @@ def parseCompany(x):
 
 	return 
 '''
-
+	
 if __name__ == "__main__":
   if len(sys.argv) != 2:
     print("Usage: filter.py <filename>", file=sys.stderr)
     sys.exit(-1)
-
+    
   sc = SparkContext("local[1]",appName="PythonStreamingNetworkWordCount")
-
+  
   lines = sc.textFile(sys.argv[1])
   header = lines.first() #extract header
-  lines = lines.filter(lambda row : row != header)
+  lines = lines.filter(lambda row : row != header) 
 
   parts = lines.map(lambda l: l.split("\t")).filter(lambda l:len(l)==24)
-  movie = parts.map(lambda p: (p[5], p[2], p[10],p[14], p[15], p[20],p[22],p[23],p[3],p[12])).filter(lambda l:l[1].isdigit() and int(l[1])>0)
+  movie = parts.map(lambda p: (p[5], p[2], p[10],p[14], p[15], p[20],p[22],p[23],p[3],p[12])).filter(lambda l:l[1].isdigit() and int(l[1])>0 and l[4].isdigit() and int(l[4])>0 )
   genre = movie.map(lambda p: (p[0], parseJson(p[8])))
   company = movie.map(lambda p: (p[0], parseJson(p[9])))
-  #parsed_json = json.loads("{'id': 16, 'name': Animation}")
+	#parsed_json = json.loads("{'id': 16, 'name': Animation}")
   movie = movie.map(lambda p: (p[0:8]))
-  # movie.foreach(print)
-  # genre.foreach(parseGenre)
-  # print("========================")
-  company.foreach(parseCompany)
+  movie.foreach(print)
+  #genre.foreach(parseGenre)
+  #company.foreach(parseCompany)
 
 
   # save data to hive
@@ -70,14 +70,15 @@ if __name__ == "__main__":
   # save movie to table
   sqlContext = HiveContext(sc)
   movieSchema = StructType([
-    StructField("movie_id", StringType(), False),
-    StructField("budget", StringType(), True),
-    StructField("popularity", StringType(), True),
-    StructField("release_date", StringType(), True),
-    StructField("revenue", StringType(), True),
+    StructField("movie_id", LongType(), False),
+    StructField("budget", LongType(), True),
+    StructField("popularity", FloatType(), True),
+    StructField("release_year", IntegerType(), True),
+    StructField("release_month", IntegerType(), True),
+    StructField("revenue", LongType(), True),
     StructField("title", StringType(), True),
-    StructField("voting_score", StringType(), True),
-    StructField("voting_count", StringType(), True)
+    StructField("voting_score", FloatType(), True),
+    StructField("voting_count", IntegerType(), True)
   ])
   movieDF = sqlContext.createDataFrame(movie, schema=movieSchema)
   movieDF.write.mode("overwrite").saveAsTable("default.movie")
