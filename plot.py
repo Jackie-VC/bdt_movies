@@ -21,7 +21,7 @@ plotly.tools.set_credentials_file(username='RayLiang', api_key='V4mdrPCykiBiMgar
 
 sc = SparkContext("local[4]",appName="PythonStreamingNetworkWordCount")
 sqlContext = HiveContext(sc)
-df2 = sqlContext.sql("select title, budget, revenue, (revenue-budget) as profit from movie where budget>10000 and revenue>budget order by (revenue-budget) desc limit 3000")
+df2 = sqlContext.sql("select title, budget, revenue, (revenue-budget) as profit from movie where budget>10000")
 
 #data = Data([Histogram(x=df2.toPandas()['budget'],y=df2.toPandas()['revenue'])])
 
