@@ -36,8 +36,8 @@ trace = go.Scatter(
         line = dict(
             width = 2,
             color = 'rgb(0, 0, 0)'
-        )
-    )
+        )),
+    text= df2.toPandas()['title']
 )
 data = [trace]
 
