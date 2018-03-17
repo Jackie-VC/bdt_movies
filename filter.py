@@ -6,24 +6,25 @@ import json
 import ast
 
 from pyspark import SparkContext, HiveContext
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, Row, DataFrame
 from pyspark.sql.types import *
+from collections import OrderedDict
 
 def parseJson(s):
 	s = ast.literal_eval(s)
 	a = json.dumps(s)
 	b = json.loads(a)
 	return b
-	
+
 def parseGenre(x):
-	print("movid = ",x[0])
+  print(x)
 '''
 	
 	for i in x[1]:
 		print('genreid=',i['id'], " name=",i['name'])
 	return 
 '''
-	
+
 def parseCompany(x):
 
 	print("movid = ",x[0])
@@ -34,30 +35,31 @@ def parseCompany(x):
 
 	return 
 '''
-	
+
 if __name__ == "__main__":
   if len(sys.argv) != 2:
     print("Usage: filter.py <filename>", file=sys.stderr)
     sys.exit(-1)
-    
+
   sc = SparkContext("local[1]",appName="PythonStreamingNetworkWordCount")
-  
+
   lines = sc.textFile(sys.argv[1])
   header = lines.first() #extract header
-  lines = lines.filter(lambda row : row != header) 
+  lines = lines.filter(lambda row : row != header)
 
   parts = lines.map(lambda l: l.split("\t")).filter(lambda l:len(l)==24)
   movie = parts.map(lambda p: (p[5], p[2], p[10],p[14], p[15], p[20],p[22],p[23],p[3],p[12])).filter(lambda l:l[1].isdigit() and int(l[1])>0)
   genre = movie.map(lambda p: (p[0], parseJson(p[8])))
   company = movie.map(lambda p: (p[0], parseJson(p[9])))
-	#parsed_json = json.loads("{'id': 16, 'name': Animation}")
+  #parsed_json = json.loads("{'id': 16, 'name': Animation}")
   movie = movie.map(lambda p: (p[0:8]))
-  movie.foreach(print)
-  #genre.foreach(parseGenre)
-  #company.foreach(parseCompany)
+  # movie.foreach(print)
+  # genre.foreach(parseGenre)
+  # print("========================")
+  company.foreach(parseCompany)
 
 
-  # save movie to hive
+  # save data to hive
   hc = SparkSession \
     .builder \
     .appName("Python Spark SQL Hive integration example") \
@@ -79,9 +81,41 @@ if __name__ == "__main__":
   ])
   movieDF = sqlContext.createDataFrame(movie, schema=movieSchema)
   movieDF.write.mode("overwrite").saveAsTable("default.movie")
-  result = sqlContext.sql("select * from movie")
-  print("=========================")
-  result.show()
+  # result = sqlContext.sql("select * from movie")
+  # print("=========================")
+  # result.show()
+
+
+  #save genre to table
+  genreSchema = StructType([
+    StructField("id", IntegerType(), False),
+    StructField("name", StringType(), True),
+  ])
+  genreData = genre\
+    .flatMap(lambda v: v[1][:])
+  sqlContext.sql("CREATE TABLE IF NOT EXISTS genre(id INT, name VARCHAR(20))")
+  existedGenreIds = sqlContext.sql("select id from genre")
+  genreDF = sqlContext.createDataFrame(genreData, genreSchema)
+  existedGenreIdList = existedGenreIds.select('id').rdd.flatMap(lambda x: x).collect()
+  newGenreDF = genreDF[~genreDF.id.isin(existedGenreIdList)]
+  result = newGenreDF.distinct()
+  result.write.mode("append").saveAsTable("default.genre")
+
+  #save company to table
+  companySchema = StructType([
+    StructField("id", IntegerType(), False),
+    StructField("name", StringType(), True),
+  ])
+  companyData = company \
+    .flatMap(lambda v: v[1][:])
+
+  sqlContext.sql("CREATE TABLE IF NOT EXISTS company(id INT, name VARCHAR(20))")
+  existedCompanyIds = sqlContext.sql("select id from company")
+  companyDF = sqlContext.createDataFrame(companyData, companySchema)
+  existedCompanyIdList = existedCompanyIds.select('id').rdd.flatMap(lambda x: x).collect()
+  newCompanyDF = companyDF[~companyDF.id.isin(existedCompanyIdList)]
+  result = newCompanyDF.distinct()
+  result.write.mode("append").saveAsTable("default.company")
 
 
 '''
