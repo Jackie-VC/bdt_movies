@@ -39,7 +39,7 @@ def parseCompany(x):
 def genrelation(x):
 	mylist=[]
 	for i in x[1]:
-		mylist.append((x[0],i['id']))
+		mylist.append((long(x[0]),i['id']))
 	#print(mylist)
 	return mylist
 	
@@ -64,7 +64,9 @@ if __name__ == "__main__":
   genre.foreach(print)
   
   genre_relation = genre.flatMap(lambda p: genrelation(p))
-  genre_relation.foreach(print)
+  company_relation = company.flatMap(lambda p: genrelation(p))
+  # genre_relation.foreach(print)
+  company_relation.foreach(print)
   #genre.foreach(parseGenre)
   #company.foreach(parseCompany)
 
@@ -128,6 +130,27 @@ if __name__ == "__main__":
   result = newCompanyDF.distinct()
   result.write.mode("append").saveAsTable("default.company")
 
+
+  #save movie_genre to table
+  movieGenreSchema = StructType([
+    StructField("movie_id", LongType(), True),
+    StructField("genre_id", LongType(), True),
+  ])
+  movieGenreData = genre_relation
+  sqlContext.sql("CREATE TABLE IF NOT EXISTS movie_genre(movie_id INT, genre_id INT)")
+  movieGenreDF = sqlContext.createDataFrame(movieGenreData, movieGenreSchema)
+  movieGenreDF.write.mode("append").saveAsTable("default.movie_genre")
+
+
+  #save movie_company to table
+  movieCompanySchema = StructType([
+    StructField("movie_id", LongType(), True),
+    StructField("company_id", LongType(), True),
+  ])
+  movieCompanyData = company_relation
+  sqlContext.sql("CREATE TABLE IF NOT EXISTS movie_company(movie_id INT, company_id INT)")
+  movieCompanyDF = sqlContext.createDataFrame(movieCompanyData, movieCompanySchema)
+  movieCompanyDF.write.mode("overwrite").saveAsTable("default.movie_company")
 
 '''
   counts = lines.flatMap(lambda line: line.split("\t")) \
