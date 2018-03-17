@@ -36,6 +36,13 @@ def parseCompany(x):
 
 	return 
 '''
+def genrelation(x):
+	mylist=[]
+	for i in x[1]:
+		mylist.append((x[0],i['id']))
+	#print(mylist)
+	return mylist
+	
 	
 if __name__ == "__main__":
   if len(sys.argv) != 2:
@@ -54,7 +61,10 @@ if __name__ == "__main__":
   company = movie.map(lambda p: (p[0], parseJson(p[9])))
 	#parsed_json = json.loads("{'id': 16, 'name': Animation}")
   movie = movie.map(lambda p: (long(p[0]),long(p[1]),float(p[2]),datetime.datetime.strptime(p[3],'%m/%d/%Y').date().year, datetime.datetime.strptime(p[3],'%m/%d/%Y').date().month,long(p[4]),p[5],float(p[6]),int(p[7])))
-  movie.foreach(print)
+  genre.foreach(print)
+  
+  genre_relation = genre.flatMap(lambda p: genrelation(p))
+  genre_relation.foreach(print)
   #genre.foreach(parseGenre)
   #company.foreach(parseCompany)
 
