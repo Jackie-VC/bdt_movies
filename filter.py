@@ -12,7 +12,6 @@ from pyspark.sql.types import *
 
 from pyspark.streaming import StreamingContext
 from pyspark.streaming.kafka import KafkaUtils
-from pyspark.sql import Row, SparkSession
 
 
 def parseJson(s):
@@ -62,7 +61,7 @@ if __name__ == "__main__":
   if len(sys.argv) != 3:
     print("Usage: filter.py <zk> <topic>", file=sys.stderr)
     sys.exit(-1)
-    
+
   # sc = SparkContext("local[1]",appName="PythonStreamingNetworkWordCount")
   #
   # lines = sc.textFile(sys.argv[1])
@@ -79,22 +78,20 @@ if __name__ == "__main__":
 
   parts = lines.map(lambda l: l.split("\t")).filter(lambda l:len(l)==24)
   movie = parts.map(lambda p: (p[5], p[2], p[10],p[14], p[15], p[20],p[22],p[23],p[3],p[12])).filter(lambda l:l[1].isdigit() and int(l[1])>0 and l[4].isdigit() and int(l[4])>0 )
-  genre = movie.map(lambda p: (p[0], parseJson(p[8])))
-  company = movie.map(lambda p: (p[0], parseJson(p[9])))
-	#parsed_json = json.loads("{'id': 16, 'name': Animation}")
+  movieIdGenre = movie.map(lambda p: (p[0], parseJson(p[8])))
+  movieIdCompany = movie.map(lambda p: (p[0], parseJson(p[9])))
+  genre = movieIdGenre.flatMap(lambda v: v[1][:])
+  company = movieIdCompany.flatMap(lambda v: v[1][:])
+  #parsed_json = json.loads("{'id': 16, 'name': Animation}")
   movie = movie.map(lambda p: (long(p[0]),long(p[1]),float(p[2]),datetime.datetime.strptime(p[3],'%m/%d/%Y').date().year, datetime.datetime.strptime(p[3],'%m/%d/%Y').date().month,long(p[4]),p[5],float(p[6]),int(p[7])))
   # genre.foreach(print)
-  
-  genre_relation = genre.flatMap(lambda p: genrelation(p))
-  company_relation = company.flatMap(lambda p: genrelation(p))
-  # genre_relation.foreach(print)
-  # company_relation.foreach(print)
-  #genre.foreach(parseGenre)
-  #company.foreach(parseCompany)
+
+  genre_relation = movieIdGenre.flatMap(lambda p: genrelation(p))
+  company_relation = movieIdCompany.flatMap(lambda p: genrelation(p))
 
 
   # save data to hive
-  hc = getSparkSessionInstance()
+  # hc = getSparkSessionInstance()
 
   # save movie to table
   sqlContext = HiveContext(sc)
@@ -113,17 +110,86 @@ if __name__ == "__main__":
 
 
   # Convert RDDs of the words DStream to DataFrame and run SQL query
-  def process(rdd):
-    # print("========= %s =========" % str(time))
-    # Get the singleton instance of SparkSession
-    spark = getSparkSessionInstance()
+  def processMovie(time, rdd):
+    try:
+      # Get the singleton instance of SparkSession
+      spark = getSparkSessionInstance()
 
-    # Convert RDD[String] to RDD[Row] to DataFrame
-    rowRdd = rdd.map(lambda p: Row(movie_id=long(p[0]), budget=long(p[1]), popularity=float(p[2]), release_year=p[3], release_month=p[4], revenue=long(p[5]), title=p[6], voting_score=float(p[7]), voting_count=float(p[8])))
-    movieDF = spark.createDataFrame(rowRdd)
-    movieDF.write.mode("overwrite").saveAsTable("default.movie_kafka_test")
+      # Convert RDD[String] to RDD[Row] to DataFrame
+      rowRdd = rdd.map(lambda p: Row(movie_id=long(p[0]), budget=long(p[1]), popularity=float(p[2]), release_year=p[3], release_month=p[4], revenue=long(p[5]), title=p[6], voting_score=float(p[7]), voting_count=float(p[8])))
+      movieDF = spark.createDataFrame(rowRdd)
+      movieDF.write.mode("overwrite").saveAsTable("bdt.movie")
+      print("========= %s =========movie saved" % str(time))
+    except:
+      pass
 
-  movie.foreachRDD(process)
+  def processGenre(time, rdd):
+    try:
+      # Get the singleton instance of SparkSession
+      spark = getSparkSessionInstance()
+
+      # Convert RDD[String] to RDD[Row] to DataFrame
+      sqlContext.sql("CREATE TABLE IF NOT EXISTS genre(id bigint, name STRING)")
+      existedGenreIds = sqlContext.sql("select id from genre")
+      genreDF = spark.createDataFrame(rdd)
+      existedGenreIdList = existedGenreIds.select('id').rdd.flatMap(lambda x: x).collect()
+      newGenreDF = genreDF[~genreDF.id.isin(existedGenreIdList)]
+      distinctedGenreDF = newGenreDF.distinct()
+      distinctedGenreDF.write.mode("overwrite").saveAsTable("bdt.genre")
+      print("========= %s =========genre saved" % str(time))
+    except:
+      pass
+
+  def processCompany(time, rdd):
+    try:
+      # Get the singleton instance of SparkSession
+      spark = getSparkSessionInstance()
+
+      # Convert RDD[String] to RDD[Row] to DataFrame
+      sqlContext.sql("CREATE TABLE IF NOT EXISTS company(id bigint, name STRING)")
+      existedCompanyIds = sqlContext.sql("select id from company")
+      companyDF = spark.createDataFrame(rdd)
+      existedCompanyIdList = existedCompanyIds.select('id').rdd.flatMap(lambda x: x).collect()
+      newCompanyDF = companyDF[~companyDF.id.isin(existedCompanyIdList)]
+      distinctedCompanyDF = newCompanyDF.distinct()
+      distinctedCompanyDF.write.mode("overwrite").saveAsTable("bdt.company")
+      print("========= %s =========company saved..." % str(time))
+    except:
+      pass
+
+  def processMovieGenre(time, rdd):
+    try:
+      # Get the singleton instance of SparkSession
+      spark = getSparkSessionInstance()
+
+      sqlContext.sql("CREATE TABLE IF NOT EXISTS movie_genre(movie_id BIGINT, genre_id BIGINT)")
+      # Convert RDD[String] to RDD[Row] to DataFrame
+      rowRdd = rdd.map(lambda p: Row(movie_id=long(p[0]), genre_id=long(p[1])))
+      movieGenreDF = spark.createDataFrame(rowRdd)
+      movieGenreDF.write.mode("overwrite").saveAsTable("bdt.movie_genre")
+      print("========= %s =========movie_genre saved..." % str(time))
+    except:
+      pass
+
+  def processMovieCompany(time, rdd):
+    try:
+      # Get the singleton instance of SparkSession
+      spark = getSparkSessionInstance()
+
+      sqlContext.sql("CREATE TABLE IF NOT EXISTS movie_company(movie_id BIGINT, company_id BIGINT)")
+      # Convert RDD[String] to RDD[Row] to DataFrame
+      rowRdd = rdd.map(lambda p: Row(movie_id=long(p[0]), company_id=long(p[1])))
+      movieGenreDF = spark.createDataFrame(rowRdd)
+      movieGenreDF.write.mode("overwrite").saveAsTable("bdt.movie_company")
+      print("========= %s ==========movie_company saved" % str(time))
+    except:
+      pass
+
+  movie.foreachRDD(processMovie)
+  genre.foreachRDD(processGenre)
+  company.foreachRDD(processCompany)
+  genre_relation.foreachRDD(processMovieGenre)
+  company_relation.foreachRDD(processMovieCompany)
   ssc.start()
   ssc.awaitTermination()
 
@@ -141,7 +207,7 @@ if __name__ == "__main__":
   # existedGenreIdList = existedGenreIds.select('id').rdd.flatMap(lambda x: x).collect()
   # newGenreDF = genreDF[~genreDF.id.isin(existedGenreIdList)]
   # result = newGenreDF.distinct()
-  # result.write.mode("append").saveAsTable("default.genre")
+  # result.write.mode("append").saveAsTable("bdt.genre")
   #
   # #save company to table
   # companySchema = StructType([
@@ -157,7 +223,7 @@ if __name__ == "__main__":
   # existedCompanyIdList = existedCompanyIds.select('id').rdd.flatMap(lambda x: x).collect()
   # newCompanyDF = companyDF[~companyDF.id.isin(existedCompanyIdList)]
   # result = newCompanyDF.distinct()
-  # result.write.mode("append").saveAsTable("default.company")
+  # result.write.mode("append").saveAsTable("bdt.company")
   #
   #
   # #save movie_genre to table
@@ -168,7 +234,7 @@ if __name__ == "__main__":
   # movieGenreData = genre_relation
   # sqlContext.sql("CREATE TABLE IF NOT EXISTS movie_genre(movie_id INT, genre_id INT)")
   # movieGenreDF = sqlContext.createDataFrame(movieGenreData, movieGenreSchema)
-  # movieGenreDF.write.mode("append").saveAsTable("default.movie_genre")
+  # movieGenreDF.write.mode("append").saveAsTable("bdt.movie_genre")
   #
   #
   # #save movie_company to table
@@ -179,7 +245,7 @@ if __name__ == "__main__":
   # movieCompanyData = company_relation
   # sqlContext.sql("CREATE TABLE IF NOT EXISTS movie_company(movie_id INT, company_id INT)")
   # movieCompanyDF = sqlContext.createDataFrame(movieCompanyData, movieCompanySchema)
-  # movieCompanyDF.write.mode("overwrite").saveAsTable("default.movie_company")
+  # movieCompanyDF.write.mode("overwrite").saveAsTable("bdt.movie_company")
 
 '''
   counts = lines.flatMap(lambda line: line.split("\t")) \
