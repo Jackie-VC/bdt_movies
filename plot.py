@@ -5,6 +5,8 @@ import plotly.plotly as py
 import plotly.graph_objs as go
 from pyspark import SparkContext, HiveContext
 from pyspark.sql import SparkSession, Row, DataFrame
+
+from pyspark.sql import SparkSession, Row, DataFrame
 from pyspark.sql.types import *
 from pyspark.sql import SQLContext
 
@@ -18,6 +20,16 @@ requests.packages.urllib3.disable_warnings()
 import numpy as np
 
 plotly.tools.set_credentials_file(username='RayLiang', api_key='V4mdrPCykiBiMgarXNVP')
+
+def getSparkSessionInstance():
+	if ('sparkSessionSingletonInstance' not in globals()):
+		globals()['sparkSessionSingletonInstance'] = SparkSession \
+			.builder \
+			.appName("Python Spark SQL Hive integration example") \
+			.config("hive.metastore.uris", "thrift://127.0.0.1:9083") \
+			.enableHiveSupport() \
+			.getOrCreate()
+	return globals()['sparkSessionSingletonInstance']
 
 def createProfit(sqlContext):
 	df2 = sqlContext.sql("select title, budget, revenue, (revenue-budget) as profit from movie where budget>10000")
@@ -36,7 +48,7 @@ def createProfit(sqlContext):
 	    text= df2.toPandas()['title']
 	)
 	data = [trace]
-	
+
 	py.plot(data, filename="best profit")
 	return
 
@@ -73,19 +85,20 @@ def createCompanyMovie(sqlContext):
     y=df.toPandas()['rev'],
 	  name='Revenue'
 	)
-	
+
 	data = [trace1, trace2]
 	layout = go.Layout(
 	    barmode='group'
 	)
-	
+
 	fig = go.Figure(data=data, layout=layout)
 	py.plot(fig, filename='Warner Bro')
 	return
-	
-sc = SparkContext("local[4]",appName="PythonStreamingNetworkWordCount")
-sqlContext = HiveContext(sc)
 
+# sc = SparkContext("local[4]",appName="PythonStreamingNetworkWordCount")
+# sqlContext = HiveContext(sc)
+
+sqlContext = getSparkSessionInstance()
 createProfit(sqlContext)
 createCompany(sqlContext)
 createCompanyMovie(sqlContext)

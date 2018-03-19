@@ -116,9 +116,12 @@ if __name__ == "__main__":
       spark = getSparkSessionInstance()
 
       # Convert RDD[String] to RDD[Row] to DataFrame
+      existedMovieIds = sqlContext.sql("select movie_id from movie")
+      existedMovieIdList = existedMovieIds.select('movie_id').rdd.flatMap(lambda x: x).collect()
       rowRdd = rdd.map(lambda p: Row(movie_id=long(p[0]), budget=long(p[1]), popularity=float(p[2]), release_year=p[3], release_month=p[4], revenue=long(p[5]), title=p[6], voting_score=float(p[7]), voting_count=float(p[8])))
       movieDF = spark.createDataFrame(rowRdd)
-      movieDF.write.mode("overwrite").saveAsTable("bdt.movie")
+      newMovieDF = movieDF[~movieDF.movie_id.isin(existedMovieIdList)]
+      newMovieDF.write.mode("append").saveAsTable("default.movie")
       print("========= %s =========movie saved" % str(time))
     except:
       pass
@@ -135,7 +138,7 @@ if __name__ == "__main__":
       existedGenreIdList = existedGenreIds.select('id').rdd.flatMap(lambda x: x).collect()
       newGenreDF = genreDF[~genreDF.id.isin(existedGenreIdList)]
       distinctedGenreDF = newGenreDF.distinct()
-      distinctedGenreDF.write.mode("overwrite").saveAsTable("bdt.genre")
+      distinctedGenreDF.write.mode("append").saveAsTable("default.genre")
       print("========= %s =========genre saved" % str(time))
     except:
       pass
@@ -152,8 +155,8 @@ if __name__ == "__main__":
       existedCompanyIdList = existedCompanyIds.select('id').rdd.flatMap(lambda x: x).collect()
       newCompanyDF = companyDF[~companyDF.id.isin(existedCompanyIdList)]
       distinctedCompanyDF = newCompanyDF.distinct()
-      distinctedCompanyDF.write.mode("overwrite").saveAsTable("bdt.company")
-      print("========= %s =========company saved..." % str(time))
+      distinctedCompanyDF.write.mode("append").saveAsTable("default.company")
+      print("========= %s =========company saved" % str(time))
     except:
       pass
 
@@ -166,8 +169,8 @@ if __name__ == "__main__":
       # Convert RDD[String] to RDD[Row] to DataFrame
       rowRdd = rdd.map(lambda p: Row(movie_id=long(p[0]), genre_id=long(p[1])))
       movieGenreDF = spark.createDataFrame(rowRdd)
-      movieGenreDF.write.mode("overwrite").saveAsTable("bdt.movie_genre")
-      print("========= %s =========movie_genre saved..." % str(time))
+      movieGenreDF.write.mode("overwrite").saveAsTable("default.movie_genre")
+      print("========= %s =========movie_genre saved" % str(time))
     except:
       pass
 
@@ -180,7 +183,7 @@ if __name__ == "__main__":
       # Convert RDD[String] to RDD[Row] to DataFrame
       rowRdd = rdd.map(lambda p: Row(movie_id=long(p[0]), company_id=long(p[1])))
       movieGenreDF = spark.createDataFrame(rowRdd)
-      movieGenreDF.write.mode("overwrite").saveAsTable("bdt.movie_company")
+      movieGenreDF.write.mode("overwrite").saveAsTable("default.movie_company")
       print("========= %s ==========movie_company saved" % str(time))
     except:
       pass

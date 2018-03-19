@@ -3,8 +3,7 @@ day 1
 Spark Streaming: save 'genre', 'company', 'movie' tables
 
 day2 
-hbase, Spark SQL
-每年投资是多少
+hive, Spark SQL
 
 day3 
 kafka 
@@ -13,12 +12,20 @@ day4
 visulization
 
 
+Analyze:
+Net profit
+Number of movies released by Distributors 
+Warner Bros budget/revenue
 
-每年平均投资多少
-公司每年投资多少
-每种类型的电影各有多少部
 
-vote 与budget 之间的关系, vote >= 100, budget > 0 ：
-1.  top100 vote 的投资分布
-2. top100 budget 的 vote
 
+Start:
+/usr/local/Cellar/hadoop/3.0.0/sbin/start-all.sh
+/usr/local/Cellar/zookeeper/3.4.10/bin/zkServer start
+hive --service metastore
+brew services start kafka
+
+
+For convenience to see logs:
+vi /usr/local/Cellar/apache-spark/2.3.0/libexec/conf/log4j.properties
+log4j.rootCategory=WARN, console
